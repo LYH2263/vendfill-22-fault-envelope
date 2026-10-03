@@ -114,6 +114,7 @@ h1 { margin: 0 0 0.25rem; font-size: 1.15rem; font-weight: 800; letter-spacing: 
 }
 .vf-slot-fill { height: 100%; background: var(--vf-led); }
 .vf-slot-fill.vf-need { background: var(--vf-amber); }
+.vf-slot-fill.vf-over { background: var(--vf-red); }
 .vf-slot-meta { font-size: 0.62rem; color: var(--vf-dim); margin-top: 0.25rem; }
 
 /* Receipt paper panel */
@@ -175,3 +176,54 @@ th { color: var(--vf-dim); font-weight: 600; font-size: 0.75rem; }
 
 .lane { display: flex; height: 28px; background: #0a0c10; border-radius: 4px; overflow: hidden; border: 1px solid #3a4656; margin: 0.35rem 0; }
 .lane-fill { height: 100%; }
+
+/* 失败条：三口（接口回包/补货单页/货道页）逐字段同一套，只画在失败路径 */
+.vf-errorbar {
+  margin: 0 0 1rem; padding: 0.7rem 0.85rem;
+  background: rgba(255, 92, 108, 0.12);
+  border: 1px solid var(--vf-red);
+  border-left: 4px solid var(--vf-red);
+  border-radius: 4px;
+  font-family: "Segoe UI", "PingFang SC", sans-serif;
+}
+.vf-errorbar-head {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 0.4rem;
+}
+.vf-errorbar-title { color: var(--vf-red); font-weight: 800; font-size: 0.85rem; }
+.vf-errorbar-code {
+  font-family: "Courier New", monospace; font-size: 0.7rem;
+  color: #ffd9dd; background: rgba(255, 92, 108, 0.25);
+  padding: 0.1rem 0.4rem; border-radius: 2px;
+}
+.vf-errorbar-row { display: flex; gap: 0.6rem; font-size: 0.78rem; line-height: 1.5; }
+.vf-errorbar-lbl {
+  flex: 0 0 4.2rem; color: var(--vf-dim); font-size: 0.7rem; padding-top: 0.08rem;
+}
+.vf-errorbar-val { color: var(--vf-text); word-break: break-all; }
+.vf-drift-tag {
+  display: inline-block; margin-left: 0.45rem; padding: 0 0.35rem;
+  font-style: normal; font-size: 0.66rem; font-weight: 700;
+  color: #241a04; background: var(--vf-amber); border-radius: 2px;
+  vertical-align: 0.05rem;
+}
+.vf-editrow { display: flex; gap: 0.4rem; align-items: center; justify-content: flex-end; }
+.vf-editrow input {
+  width: 52px; background: #0a0e14; color: var(--vf-text);
+  border: 1px solid #3a4656; border-radius: 3px; padding: 0.15rem 0.3rem;
+  font-family: inherit; font-size: 0.74rem;
+}
+.btn-mini {
+  padding: 0.18rem 0.5rem; font-size: 0.7rem; border-radius: 3px;
+  background: var(--vf-face); color: var(--vf-text); border: 1px solid #3a4656; cursor: pointer;
+}
+.btn-mini:hover { border-color: var(--vf-led); color: var(--vf-led); }
+.vf-fulfilled { color: var(--vf-led); font-size: 0.7rem; font-weight: 700; }
+.vf-actions { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+.vf-order-state { font-size: 0.75rem; color: var(--vf-dim); }
+.vf-okline {
+  margin: 0 0 0.85rem; padding: 0.45rem 0.7rem; font-size: 0.8rem;
+  color: var(--vf-led); background: rgba(57,255,136,0.1);
+  border: 1px solid rgba(57,255,136,0.45); border-radius: 4px;
+  font-family: "Segoe UI", "PingFang SC", sans-serif;
+}

@@ -1,43 +1,86 @@
 import json
-from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException
+
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+
 from app.database import get_db
-from app.models.models import Lane, Location, RefillOrder
-from app.services.fill_engine import build_fill_lines, summarize
+from app.models.models import RefillFailure, RefillOrder
+from app.services import refill_service as svc
+
 router = APIRouter(prefix="/refills", tags=["refills"])
+
+
+class AdjustIn(BaseModel):
+    # 手工补量：lane_id -> 件数；超缺口/负数由 service 校验并整体拒收
+    fills: dict[int, int] = Field(default_factory=dict)
+
 
 @router.post("/run")
 def run_refill(location_id: int = 1, db: Session = Depends(get_db)):
-    loc = db.get(Location, location_id)
-    if not loc: raise HTTPException(404, "点位不存在")
-    lanes = db.scalars(select(Lane).where(Lane.location_id == location_id).order_by(Lane.slot_no)).all()
-    payload = [{"id": l.id, "slot_no": l.slot_no, "sku_name": l.sku_name,
-                "capacity": l.capacity, "stock": l.stock, "in_transit": l.in_transit} for l in lanes]
-    summary = summarize(build_fill_lines(payload))
-    order = RefillOrder(location_id=location_id, created_at=datetime.utcnow(),
-                        lines_json=json.dumps(summary, ensure_ascii=False))
-    db.add(order); db.commit(); db.refresh(order)
-    return {"id": order.id, "location_id": location_id, **summary}
+    # 成功回包只有补货单字段；失败由 FailError 处理器落成三字段信封。
+    return svc.generate(db, location_id)
+
 
 @router.get("/latest")
 def latest(location_id: int = 1, db: Session = Depends(get_db)):
     order = db.scalars(select(RefillOrder).where(RefillOrder.location_id == location_id)
                        .order_by(RefillOrder.id.desc())).first()
-    if not order:
-        return run_refill(location_id=location_id, db=db)
-    data = json.loads(order.lines_json)
-    return {"id": order.id, "location_id": location_id, **data}
+    # 无单不自动补单：返回 null，由页面提示；绝不伪装成失败信封或成功信封。
+    return svc.order_to_dto(order) if order else None
+
+
+@router.post("/{order_id}/adjust")
+def adjust_order(order_id: int, body: AdjustIn, db: Session = Depends(get_db)):
+    return svc.adjust(db, order_id, body.fills)
+
+
+@router.post("/{order_id}/fulfill")
+def fulfill_order(order_id: int, db: Session = Depends(get_db)):
+    return svc.fulfill(db, order_id)
+
+
+def _failure_triple(row: RefillFailure) -> dict[str, str]:
+    # 只回三字段，与错误条、失败流水逐字段同一套。
+    return {"code": row.code, "subject": row.subject, "detail": row.detail}
+
+
+@router.get("/last-failure")
+def last_failure(location_id: int = 1, db: Session = Depends(get_db)):
+    row = svc.latest_failure(db, location_id)
+    return _failure_triple(row) if row else None
+
+
+@router.get("/failures")
+def list_failures(location_id: int = 1, action: str | None = None,
+                  db: Session = Depends(get_db)):
+    q = select(RefillFailure).where(RefillFailure.location_id == location_id)
+    if action is not None:
+        q = q.where(RefillFailure.action == action)
+    rows = db.scalars(q.order_by(RefillFailure.id.desc())).all()
+    return {"location_id": location_id, "failures": [_failure_triple(r) for r in rows]}
+
 
 @router.get("/full")
 def full_lanes(location_id: int = 1, db: Session = Depends(get_db)):
-    data = latest(location_id=location_id, db=db)
-    return {"location_id": location_id, "lanes": [l for l in data["lines"] if l["status"] == "full"]}
+    order = db.scalars(select(RefillOrder).where(RefillOrder.location_id == location_id)
+                       .order_by(RefillOrder.id.desc())).first()
+    if not order:
+        return {"location_id": location_id, "lanes": []}
+    data = json.loads(order.lines_json)
+    return {"location_id": location_id,
+            "lanes": [l for l in data["lines"] if l["status"] == "full"]}
+
 
 @router.get("/summary")
 def refill_summary(location_id: int = 1, db: Session = Depends(get_db)):
-    data = latest(location_id=location_id, db=db)
+    order = db.scalars(select(RefillOrder).where(RefillOrder.location_id == location_id)
+                       .order_by(RefillOrder.id.desc())).first()
+    if not order:
+        return {"location_id": location_id, "total_fill": 0,
+                "need_fill_count": 0, "full_count": 0, "overbooked_count": 0}
+    data = json.loads(order.lines_json)
     return {
         "location_id": location_id,
         "total_fill": data["total_fill"],

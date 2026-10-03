@@ -33,3 +33,16 @@ class RefillOrder(Base):
     location_id: Mapped[int] = mapped_column(ForeignKey("locations.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     lines_json: Mapped[str] = mapped_column(Text, default="[]")
+    # draft=已落单待核销；fulfilled=已核销并改库存。失败一律不落单，故无 failed 态。
+    status: Mapped[str] = mapped_column(String(16), default="draft")
+
+class RefillFailure(Base):
+    """失败流水：只存三字段信封同一份值（detail 已按真源截短，不补全）。"""
+    __tablename__ = "refill_failures"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    location_id: Mapped[int] = mapped_column(ForeignKey("locations.id"), nullable=True)
+    action: Mapped[str] = mapped_column(String(32))  # generate | manual_edit | fulfill | capacity
+    code: Mapped[str] = mapped_column(String(48))
+    subject: Mapped[str] = mapped_column(String(128))
+    detail: Mapped[str] = mapped_column(String(256))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
