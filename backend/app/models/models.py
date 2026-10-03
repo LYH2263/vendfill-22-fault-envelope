@@ -33,3 +33,17 @@ class RefillOrder(Base):
     location_id: Mapped[int] = mapped_column(ForeignKey("locations.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     lines_json: Mapped[str] = mapped_column(Text, default="[]")
+    redeemed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class FailureRecord(Base):
+    """失败落单：接口回包、补货单页、货道页错误条读的是同一条记录的三字段。"""
+    __tablename__ = "failure_records"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    location_id: Mapped[int | None] = mapped_column(ForeignKey("locations.id"), nullable=True)
+    scene: Mapped[str] = mapped_column(String(32))          # generate | manual_edit | redeem | capacity
+    error_code: Mapped[str] = mapped_column(String(64))
+    object_id: Mapped[str] = mapped_column(String(64))
+    message: Mapped[str] = mapped_column(Text)
+    drifted: Mapped[bool] = mapped_column(default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
